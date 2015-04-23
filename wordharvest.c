@@ -9,11 +9,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 #define MAX_EXTENSIONS 5
 #define MAX_LENGTH_NAME 6
 
 char extensions[MAX_EXTENSIONS][MAX_LENGTH_NAME+1];
+FILE* output = NULL;
 
 int can_handle_pdf()
 {
@@ -61,7 +64,6 @@ int parse_e_option(char* opt_value)
   int i = 0;
   int k;
   
-  printf ("OPT -e: %s \n", opt_value);
   if (NULL == opt_value)
 	return 0;
   while(opt_value[i] != '\0')
@@ -69,7 +71,11 @@ int parse_e_option(char* opt_value)
 	for (k = 0; k < MAX_LENGTH_NAME && opt_value[i+k] != '\0' && opt_value[i+k] != ':'; k++)
 		extension[k] = opt_value[i+k];
 	extension[k] = '\0';
-	printf(" __%s\n", extension);
+	if (! is_this_extension_allowed(extension))
+	{
+		printf("ERROR: Extension ''%s'' not allowed.\n", extension);
+		return 0;;
+	}
 	if (':' == opt_value[i+k])
 		i = i + k + 1;
 	else
@@ -79,14 +85,36 @@ int parse_e_option(char* opt_value)
   return 1;
 }
 
-int parse_d_option(optarg)
+/* check if directory exist */
+int parse_d_option(const char* optarg)
 {
-	return 1; /* TODO */
+	DIR* dir = opendir(optarg);
+	if (dir)
+	{
+	    closedir(dir);
+		return 1;
+	}
+	return 0;
 }
 
-int parse_o_option(optarg)
+int parse_o_option(char* optarg)
 {
-	return 1; /* TODO */
+	output = fopen (optarg ,"w");
+	if (NULL == output)
+		return 0;
+	return 1;
+}
+
+
+void print_allowed_extensions()
+{
+	int i;
+	printf("Allowed extensions: ");
+	for (i = 0; i < MAX_EXTENSIONS; i++)
+	{
+		printf("%s ", extensions[i]);
+	}
+	printf ("\n");
 }
 
 int parse_options (int argc, char **argv)
@@ -102,10 +130,6 @@ int parse_options (int argc, char **argv)
   /* wordharvest -e txt:text:asc -d /tmp/ -o words_tmp */
   while ((c = getopt (argc, argv, "e:d:o:")) != -1)
   {
-	if (optarg == NULL)
-		printf ("NULL\n");
-	else
-		printf ("%s\n", optarg);
     switch (c)
       {
       case 'e':
@@ -126,10 +150,14 @@ int parse_options (int argc, char **argv)
 
    }
    if (3 != eflag + dflag + oflag)
-	printf("Usage: wordharvest -e <extension0>:<extension1>:..:<extensionN> -d <dir> -o <output file>\n");
+   {
+		printf("Usage: wordharvest -e <extension0>:<extension1>:..:<extensionN> -d <dir> -o <output file>\n");
+		print_allowed_extensions();
+		printf("Check if the directory passed with -d option exists\n");
+   }
    else
    {
-	printf("options OK\n");
+		printf("options OK\n");
    }
 
 
@@ -142,5 +170,8 @@ int main(int argc, char **argv)
 	char buffer_extensions[MAX_LENGTH_NAME];
 	number_allowed_extensions = init_allowed_extensions();
 	parse_options(argc, argv);
+
+
+	fclose(output);
 	return 0;
 }
