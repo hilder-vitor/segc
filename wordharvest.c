@@ -25,6 +25,7 @@ long wl_fsize(FILE *fp);
 int wl_rfile(char **buffer, FILE *fp);
 int wl_thash_insert(const char *str, int *value);
 int wl_thash_find(const char *str);
+int wl_search_words(const char *buffer, void (*handle)(const char*));
 
 int can_handle_pdf()
 {
@@ -287,4 +288,37 @@ int wl_thash_find(const char *str)
         return 1;
     else
         return 0;
+}
+
+int wl_search_words(const char *buffer, void (*handle)(const char*))
+{
+    regmatch_t match;
+    regex_t reg;
+    int error, start = 0;
+    char *reg_word;
+    char word[128];
+
+    asprintf(&reg_word, "[a-zA-Z0-9]+");
+
+    if (regcomp(&reg, reg_word, REG_EXTENDED) != 0)
+        return -2;
+
+    error = regexec(&reg, buffer, 1, &match, 0);
+
+    while (error == 0) {
+        int eo = match.rm_eo, so = match.rm_so;
+        int len = eo - so;
+
+        if (len < 128) {
+            memcpy(word, buffer + start + so, len);
+            word[len] = '\0';
+            handle(word);
+        }
+
+        start += match.rm_eo;
+
+        error = regexec(&reg, &buffer[start], 1, &match, REG_NOTBOL);
+    }
+
+    return 0;
 }
