@@ -19,7 +19,7 @@
 char extensions[MAX_EXTENSIONS][MAX_LENGTH_NAME + 1];
 FILE* output = NULL;
 
-int search_files(const char *root, const char *ext);
+int search_files(const char *root, const char *ext, void (*apply)(const char *));
 
 int can_handle_pdf()
 {
@@ -176,7 +176,17 @@ int main(int argc, char **argv)
     return 0;
 }
 
-int search_files(const char *root, const char *ext)
+/**
+ * @brief Search for files according extension and apply a function on it
+ *
+ * @param root is the initial directory for start the search
+ * @param ext is the file extension for what is searching, it must be entered
+ * without the "."
+ * @param apply is a function to apply on found file
+ *
+ * @return 0 for ok and < 0 for an error
+ */
+int search_files(const char *root, const char *ext, void (*apply)(const char *))
 {
     DIR *dp;
     regex_t reg;
@@ -198,18 +208,12 @@ int search_files(const char *root, const char *ext)
             asprintf(&full_dir, "%s/%s", root, ep->d_name);
 
             if (ep->d_type == DT_DIR) {
-
                 if ((strcmp(ep->d_name, ".") != 0)
-                        && (strcmp(ep->d_name, "..") != 0)) {
-                    printf("DIR: %s\n", full_dir);
-                    search_files(full_dir, ext);
-                }
+                        && (strcmp(ep->d_name, "..") != 0))
+                    search_files(full_dir, ext, apply);
             } else {
-                if ((regexec(&reg, ep->d_name, 0, (regmatch_t *) NULL, 0))
-                        == 0) {
-                    printf("FILE MATCH: %s\n", full_dir);
-                } else
-                    printf("FILE: %s\n", full_dir);
+                if ((regexec(&reg, ep->d_name, 0, (regmatch_t *) NULL, 0)) == 0)
+                    apply(full_dir);
             }
 
             free(full_dir);
@@ -217,8 +221,7 @@ int search_files(const char *root, const char *ext)
 
         (void) closedir(dp);
     } else
-        fprintf(stderr, "Couldn't open the directory: %s\n", root);
+        return -1;
 
     return 0;
 }
-
