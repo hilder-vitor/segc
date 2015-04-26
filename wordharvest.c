@@ -20,6 +20,8 @@ char extensions[MAX_EXTENSIONS][MAX_LENGTH_NAME + 1];
 FILE* output = NULL;
 
 int search_files(const char *root, const char *ext, void (*apply)(const char *));
+long wl_fsize(FILE *fp);
+int wl_rfile(char **buffer, FILE *fp);
 
 int can_handle_pdf()
 {
@@ -222,6 +224,38 @@ int search_files(const char *root, const char *ext, void (*apply)(const char *))
         (void) closedir(dp);
     } else
         return -1;
+
+    return 0;
+}
+
+long wl_fsize(FILE *fp)
+{
+    long lsize;
+
+    fseek (fp , 0 , SEEK_END);
+    lsize = ftell (fp);
+    rewind (fp);
+
+    return lsize;
+}
+
+int wl_rfile(char **buffer, FILE *fp)
+{
+    size_t result = 0;
+    long lsize = wl_fsize(fp);
+
+    *buffer = (char *) malloc(lsize*sizeof(char));
+
+    if (*buffer == NULL)
+        return -1;
+
+    result = fread (*buffer, 1, lsize, fp);
+
+    if (result != lsize)
+        return -1;
+
+    if (result == 0)
+        sprintf(*buffer, " ");
 
     return 0;
 }
