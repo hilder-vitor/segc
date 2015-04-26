@@ -23,9 +23,13 @@ FILE* output = NULL;
 int search_files(const char *root, const char *ext, void (*apply)(const char *));
 long wl_fsize(FILE *fp);
 int wl_rfile(char **buffer, FILE *fp);
-int wl_thash_insert(const char *str, int *value);
-int wl_thash_find(const char *str);
+char *strrep(char *dest, const char *str, char op);
 int wl_search_words(const char *buffer, void (*handle)(const char*));
+void handle_word(const char *word);
+int wl_rwords(const char *path_name);
+void func_apply(const char *str);
+int wl_hash_insert(const char *str);
+int wl_hash_find(const char *str);
 
 int can_handle_pdf()
 {
@@ -134,6 +138,8 @@ int parse_options(int argc, char **argv)
     int index;
     int ret = 0;
     int c;
+    char ext[128];
+    char dir[128];
 
     opterr = 0;
     /* wordharvest -e txt:text:asc -d /tmp/ -o words_tmp */
@@ -141,9 +147,11 @@ int parse_options(int argc, char **argv)
         switch (c) {
         case 'e':
             eflag = parse_e_option(optarg);
+            strncpy(ext, optarg, strlen(optarg) + 1);
             break;
         case 'd':
             dflag = parse_d_option(optarg);
+            strncpy(dir, optarg, strlen(optarg) + 1);
             break;
         case 'o':
             oflag = parse_o_option(optarg);
@@ -164,7 +172,14 @@ int parse_options(int argc, char **argv)
         printf("Check if the directory passed with -d option exists\n");
         ret = -1;
     } else {
-        printf("options OK\n");
+        // Create hash table
+        hcreate(1000);
+
+        search_files(dir, ext, func_apply);
+
+        hdestroy();
+
+        fclose(output);
         ret = 0;
     }
 
@@ -178,7 +193,6 @@ int main(int argc, char **argv)
     number_allowed_extensions = init_allowed_extensions();
     parse_options(argc, argv);
 
-    fclose(output);
     return 0;
 }
 
@@ -199,10 +213,13 @@ int search_files(const char *root, const char *ext, void (*apply)(const char *))
     struct dirent *ep;
     char *full_dir;
     char *reg_ext;
+    char dext[128];
 
     dp = opendir(root);
 
-    asprintf(&reg_ext, "^.*\\.(%s)$", ext);
+    strrep(dext, ext, ':');
+
+    asprintf(&reg_ext, "^.*\\.(%s)$", dext);
 
     if (regcomp(&reg, reg_ext, REG_EXTENDED | REG_NOSUB) != 0)
         return -2;
@@ -214,31 +231,64 @@ int search_files(const char *root, const char *ext, void (*apply)(const char *))
             asprintf(&full_dir, "%s/%s", root, ep->d_name);
 
             if (ep->d_type == DT_DIR) {
+
                 if ((strcmp(ep->d_name, ".") != 0)
-                        && (strcmp(ep->d_name, "..") != 0))
+                        && (strcmp(ep->d_name, "..") != 0)) {
                     search_files(full_dir, ext, apply);
+                }
             } else {
-                if ((regexec(&reg, ep->d_name, 0, (regmatch_t *) NULL, 0)) == 0)
+                if ((regexec(&reg, ep->d_name, 0, (regmatch_t *) NULL, 0))
+                        == 0) {
                     apply(full_dir);
+                }
             }
 
             free(full_dir);
         }
 
         (void) closedir(dp);
-    } else
+    } else {
+        fprintf(stderr, "Couldn't open the directory: %s\n", root);
         return -1;
+    }
 
     return 0;
+}
+
+char *strrep(char *dest, const char *str, char op)
+{
+    char *tmp = dest;
+
+    while (*str != '\0') {
+        if (*str == op)
+            *dest = '|';
+        else
+            *dest = *str;
+
+        dest++;
+        str++;
+    }
+
+    *dest = '\0';
+
+    return tmp;
+}
+
+void handle_word(const char *word)
+{
+    if (!wl_hash_find(word)) {
+        wl_hash_insert(word);
+        fprintf(output, "%s\n", word);
+    }
 }
 
 long wl_fsize(FILE *fp)
 {
     long lsize;
 
-    fseek (fp , 0 , SEEK_END);
-    lsize = ftell (fp);
-    rewind (fp);
+    fseek(fp, 0, SEEK_END);
+    lsize = ftell(fp);
+    rewind(fp);
 
     return lsize;
 }
@@ -248,26 +298,48 @@ int wl_rfile(char **buffer, FILE *fp)
     size_t result = 0;
     long lsize = wl_fsize(fp);
 
-    *buffer = (char *) malloc(lsize*sizeof(char));
+    *buffer = (char *) malloc(lsize * sizeof(char));
 
     if (*buffer == NULL)
         return -1;
 
-    result = fread (*buffer, 1, lsize, fp);
+    result = fread(*buffer, 1, lsize, fp);
 
     if (result != lsize)
         return -1;
 
     if (result == 0)
-        sprintf(*buffer, " ");
+        return 1;
 
     return 0;
 }
 
-int wl_thash_insert(const char *str, int *value)
+int wl_rwords(const char *path_name)
 {
+    FILE *fp = fopen(path_name, "r");
+    char *buffer;
+    int ret = 0;
+
+    if ((ret = wl_rfile(&buffer, fp)) == 0)
+        wl_search_words(buffer, handle_word);
+
+    fclose(fp);
+
+    free(buffer);
+
+    return ret;
+}
+
+void func_apply(const char *str)
+{
+    wl_rwords(str);
+}
+
+int wl_hash_insert(const char *str)
+{
+    int value = 1;
     char *key = strdup(str);
-    ENTRY e = {key, (void *) value}, *ep;
+    ENTRY e = { key, (void *) value }, *ep;
 
     ep = hsearch(e, ENTER);
 
@@ -277,7 +349,7 @@ int wl_thash_insert(const char *str, int *value)
         return 0;
 }
 
-int wl_thash_find(const char *str)
+int wl_hash_find(const char *str)
 {
     ENTRY e, *ep;
 
