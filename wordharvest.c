@@ -12,6 +12,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <regex.h>
+#include <search.h>
 
 #define MAX_EXTENSIONS 5
 #define MAX_LENGTH_NAME 6
@@ -22,6 +23,8 @@ FILE* output = NULL;
 int search_files(const char *root, const char *ext, void (*apply)(const char *));
 long wl_fsize(FILE *fp);
 int wl_rfile(char **buffer, FILE *fp);
+int wl_thash_insert(const char *str, int *value);
+int wl_thash_find(const char *str);
 
 int can_handle_pdf()
 {
@@ -258,4 +261,30 @@ int wl_rfile(char **buffer, FILE *fp)
         sprintf(*buffer, " ");
 
     return 0;
+}
+
+int wl_thash_insert(const char *str, int *value)
+{
+    char *key = strdup(str);
+    ENTRY e = {key, (void *) value}, *ep;
+
+    ep = hsearch(e, ENTER);
+
+    if (ep == NULL)
+        return -1;
+    else
+        return 0;
+}
+
+int wl_thash_find(const char *str)
+{
+    ENTRY e, *ep;
+
+    e.key = (char *) str;
+    ep = hsearch(e, FIND);
+
+    if (ep)
+        return 1;
+    else
+        return 0;
 }
