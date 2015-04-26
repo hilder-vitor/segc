@@ -392,5 +392,7 @@ int wl_search_words(const char *buffer, void (*handle)(const char*))
         error = regexec(&reg, &buffer[start], 1, &match, REG_NOTBOL);
     }
 
+    free(reg_word);
+
     return 0;
 }
