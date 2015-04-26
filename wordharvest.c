@@ -186,7 +186,7 @@ int search_files(const char *root, const char *ext)
 
     dp = opendir(root);
 
-    asprintf(&reg_ext, "^.*\.(%s)$", ext);
+    asprintf(&reg_ext, "^.*\\.(%s)$", ext);
 
     if (regcomp(&reg, reg_ext, REG_EXTENDED | REG_NOSUB) != 0)
         return -2;
