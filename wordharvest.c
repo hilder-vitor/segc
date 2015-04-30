@@ -89,8 +89,7 @@ int parse_e_option(char* opt_value)
         extension[k] = '\0';
 
         if (!is_this_extension_allowed(extension)) {
-            printf("ERROR: Extension ''%s'' not allowed.\n", extension);
-            return 0;;
+        	fprintf(stderr, "WARNING: Extension ''%s'' will be treated as pure ASCII text.\n", extension);
         }
 
         if (':' == opt_value[i + k])
@@ -144,7 +143,7 @@ int parse_options(int argc, char **argv)
     char dir[128];
 
     opterr = 0;
-    /* wordharvest -e txt:text:asc -d /tmp/ -o words_tmp */
+    /* allowed options:  -e, -d and -o */
     while ((c = getopt(argc, argv, "e:d:o:")) != -1) {
         switch (c) {
         case 'e':
@@ -168,14 +167,14 @@ int parse_options(int argc, char **argv)
     }
 
     if (3 != eflag + dflag + oflag) {
-        printf("Usage: wordharvest -e <extension0>:<extension1>:..:"
+        fprintf(stderr, "Usage: wordharvest -e <extension0>:<extension1>:..:"
                 "<extensionN> -d <dir> -o <output file>\n");
         print_allowed_extensions();
-        printf("Check if the directory passed with -d option exists\n");
+        fprintf(stderr, "Check if the directory passed with -d option exists\n");
         ret = -1;
     } else {
         // Create hash table
-        hcreate(1000);
+        hcreate(25000);
 
         search_files(dir, ext, func_apply);
 
