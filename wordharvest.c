@@ -7,7 +7,7 @@
  *
  *	COMPILE: just run  gcc wordharvest.c
  *
- *  Authors:  Alex S. Torres, RA 161030
+ *  Authors:  Alex Silva Torres, RA 161939
  *  		  Hilder Vitor Lima Pereira, RA 161440
  *
  ********************************************/
