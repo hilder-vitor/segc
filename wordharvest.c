@@ -1,7 +1,15 @@
 /********************************************
- *   Searches for files and extract words
- * from them to create a list of keywords
- * that can be used in a dictionary attack
+ *   This program searches for files and extract words
+ * from them to create a list of keywords that can
+ * be used in a dictionary attack.
+ *   The main objective is to search inside text files,
+ * but it can search for words inside PDF files as well.
+ *
+ *	COMPILE: just run  gcc wordharvest.c
+ *
+ *  Authors:  Alex S. Torres, RA 161030
+ *  		  Hilder Vitor Lima Pereira, RA 161440
+ *
  ********************************************/
 
 #include <unistd.h>
@@ -44,7 +52,7 @@ int can_handle_pdf()
 
 int can_handle_doc()
 {
-    return 0; /* TODO */
+    return 1;
 }
 
 int init_allowed_extensions()
