@@ -23,13 +23,15 @@ FILE* output = NULL;
 int search_files(const char *root, const char *ext, void (*apply)(const char *));
 long wl_fsize(FILE *fp);
 int wl_rfile(char **buffer, FILE *fp);
-char *strrep(char *dest, const char *str, char op);
+char *strrep(char *dest, const char *str, char op, char to);
 int wl_search_words(const char *buffer, void (*handle)(const char*));
 void handle_word(const char *word);
 int wl_rwords(const char *path_name);
 void func_apply(const char *str);
 int wl_hash_insert(const char *str);
 int wl_hash_find(const char *str);
+int exec(const char* cmd, char *buffer, size_t n);
+void handle_pdf(const char *path_name);
 
 int can_handle_pdf()
 {
@@ -217,7 +219,7 @@ int search_files(const char *root, const char *ext, void (*apply)(const char *))
 
     dp = opendir(root);
 
-    strrep(dext, ext, ':');
+    strrep(dext, ext, ':', '|');
 
     asprintf(&reg_ext, "^.*\\.(%s)$", dext);
 
@@ -255,13 +257,13 @@ int search_files(const char *root, const char *ext, void (*apply)(const char *))
     return 0;
 }
 
-char *strrep(char *dest, const char *str, char op)
+char *strrep(char *dest, const char *str, char op, char to)
 {
     char *tmp = dest;
 
     while (*str != '\0') {
         if (*str == op)
-            *dest = '|';
+            *dest = to;
         else
             *dest = *str;
 
@@ -332,6 +334,15 @@ int wl_rwords(const char *path_name)
 
 void func_apply(const char *str)
 {
+    regex_t reg;
+    char *reg_ext;
+    asprintf(&reg_ext, "^.*\\.(pdf)$");
+    regcomp(&reg, reg_ext, REG_EXTENDED | REG_NOSUB);
+
+    if ((regexec(&reg, str, 0, (regmatch_t *) NULL, 0)) == 0) {
+        handle_pdf(str);
+    }
+
     wl_rwords(str);
 }
 
@@ -395,4 +406,44 @@ int wl_search_words(const char *buffer, void (*handle)(const char*))
     free(reg_word);
 
     return 0;
+}
+
+int exec(const char* cmd, char *buffer, size_t n)
+{
+    FILE* pipe = popen(cmd, "r");
+    if (!pipe)
+        return -1;
+
+    if (fgets(buffer, n, pipe) == NULL)
+        return -1;
+
+    buffer[n] = '\0';
+    pclose(pipe);
+    return 0;
+}
+
+void handle_pdf(const char *path_name)
+{
+    char buffer[256], pdftotext[256];
+    char cmd[256], command[256];
+    char *file_path = (char*) malloc((strlen(path_name)+10)*sizeof(char));
+
+    exec("which pdftotext", buffer, 128);
+
+    strncpy(pdftotext, buffer, strlen(buffer) - 2);
+    pdftotext[strlen(buffer) - 2] = '\0';
+
+    if (strlen(buffer) > 1) {
+        snprintf(file_path, strlen(path_name)+10, "%s.tmp", path_name);
+        snprintf(cmd, 128, "%s %s %s", buffer, path_name, file_path);
+        strrep(command, cmd, '\n', ' ');
+
+        exec(command, buffer, 128);
+        if( access( file_path, F_OK ) != -1 ) {
+            wl_rwords(file_path);
+            unlink(file_path);
+        }
+    }
+
+    free(file_path);
 }
