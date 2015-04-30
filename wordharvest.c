@@ -341,9 +341,9 @@ void func_apply(const char *str)
 
     if ((regexec(&reg, str, 0, (regmatch_t *) NULL, 0)) == 0) {
         handle_pdf(str);
+    } else {
+        wl_rwords(str);
     }
-
-    wl_rwords(str);
 }
 
 int wl_hash_insert(const char *str)
